@@ -9,8 +9,7 @@ updates = []
 
 @app.route('/')
 def index():
-    # index.htmlにはcanvasは渡さず、JSで/canvas APIを叩く想定
-    return render_template('index.html')
+    return render_template('index.html', canvas=canvas)
 
 @app.route('/canvas')
 def get_canvas():
