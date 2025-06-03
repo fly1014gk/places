@@ -1,27 +1,46 @@
-<script>
-    const size = {{ size }};
-    const canvasData = {{ canvas|tojson }};
-    const colors = ["#fff", "#f00", "#00f", "#0f0", "#000"];
-    const ctx = document.getElementById('board').getContext('2d');
-    function drawBoard() {
-        for(let y=0; y<size; y++){
-            for(let x=0; x<size; x++){
-                ctx.fillStyle = colors[canvasData[y][x]];
-                ctx.fillRect(x, y, 1, 1);
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mini r/place</title>
+    <style>
+        canvas { border: 1px solid #888; }
+    </style>
+</head>
+<body>
+    <h1>Mini r/place</h1>
+    <select id="color">
+        <option value="1" style="background:red;">Red</option>
+        <option value="2" style="background:blue;">Blue</option>
+        <option value="3" style="background:green;">Green</option>
+        <option value="4" style="background:black;">Black</option>
+    </select>
+    <canvas id="board" width="{{ size }}" height="{{ size }}"></canvas>
+    <script>
+        const size = {{ size }};
+        const canvasData = {{ canvas|tojson }};
+        const colors = ["#fff", "#f00", "#00f", "#0f0", "#000"];
+        const ctx = document.getElementById('board').getContext('2d');
+        function drawBoard() {
+            for(let y=0; y<size; y++){
+                for(let x=0; x<size; x++){
+                    ctx.fillStyle = colors[canvasData[y][x]];
+                    ctx.fillRect(x, y, 1, 1);
+                }
             }
         }
-    }
-    drawBoard();
+        drawBoard();
 
-    document.getElementById('board').addEventListener('click', function(e){
-        const rect = this.getBoundingClientRect();
-        const x = Math.floor((e.clientX - rect.left));
-        const y = Math.floor((e.clientY - rect.top));
-        const color = document.getElementById('color').value;
-        fetch('/draw', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({x: x, y: y, color: parseInt(color)})
-        }).then(() => location.reload());
-    });
-</script>
+        document.getElementById('board').addEventListener('click', function(e){
+            const rect = this.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left));
+            const y = Math.floor((e.clientY - rect.top));
+            const color = document.getElementById('color').value;
+            fetch('/draw', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({x: x, y: y, color: parseInt(color)})
+            }).then(() => location.reload());
+        });
+    </script>
+</body>
+</html>
