@@ -1,15 +1,15 @@
-from flask import Flask, request, jsonify, render_template
 import time
 import os
 import json
 import threading
 import subprocess
+from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 SIZE = 100
 DEFAULT_COLORS = ["#fff", "#f00", "#00f", "#0f0", "#000"]
 CANVAS_FILE = "canvas.json"
-SAVE_INTERVAL = 300  # 5分 = 300秒
+SAVE_INTERVAL = 300  # 5分
 
 canvas = [[DEFAULT_COLORS[0] for _ in range(SIZE)] for _ in range(SIZE)]
 updates = []
@@ -17,7 +17,6 @@ updates = []
 def save_canvas():
     with open(CANVAS_FILE, "w", encoding="utf-8") as f:
         json.dump(canvas, f)
-    git_push_canvas()
 
 def load_canvas():
     global canvas
@@ -29,28 +28,25 @@ def load_canvas():
     except Exception:
         pass
 
-def save_canvas_periodically():
-    while True:
-        time.sleep(SAVE_INTERVAL)
-        save_canvas()
-
 def git_push_canvas():
     try:
-        # Git user設定（初回のみ・毎回でもOK）
         subprocess.run(["git", "config", "--global", "user.email", "renderbot@example.com"], check=True)
         subprocess.run(["git", "config", "--global", "user.name", "renderbot"], check=True)
-        # git add & commit
         subprocess.run(["git", "add", CANVAS_FILE], check=True)
-        subprocess.run(["git", "commit", "-m", "Update canvas.json"], check=True)
-        # push（パスワードにトークンを埋め込む）
+        subprocess.run(["git", "commit", "-m", "Periodic update canvas.json"], check=True)
         gh_token = os.environ.get('GH_TOKEN')
-        repo_url = os.environ.get('REPO_URL')  # 例: https://github.com/yourname/yourrepo.git
+        repo_url = os.environ.get('REPO_URL')
         if gh_token and repo_url:
-            # https://<token>@github.com/user/repo.git 形式
             push_url = repo_url.replace("https://", f"https://{gh_token}@")
             subprocess.run(["git", "push", push_url, "main"], check=True)
     except Exception as e:
         print("Git push failed:", e)
+
+def save_and_push_periodically():
+    while True:
+        time.sleep(SAVE_INTERVAL)
+        save_canvas()
+        git_push_canvas()
 
 @app.route('/')
 def index():
@@ -68,7 +64,6 @@ def draw():
     if 0 <= x < SIZE and 0 <= y < SIZE:
         canvas[y][x] = color
         updates.append({"x": x, "y": y, "color": color, "timestamp": ts})
-        save_canvas()  # 描画ごとに保存＆push
     return jsonify(success=True, timestamp=ts)
 
 @app.route('/diff')
@@ -79,7 +74,7 @@ def get_diff():
 
 if __name__ == '__main__':
     load_canvas()
-    t = threading.Thread(target=save_canvas_periodically, daemon=True)
+    t = threading.Thread(target=save_and_push_periodically, daemon=True)
     t.start()
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
