@@ -3,7 +3,7 @@
 <head>
     <title>Mini r/place</title>
     <style>
-        canvas { border: 1px solid #888; }
+        canvas { border: 1px solid #888; background: #fff; }
         #palette span {
             display: inline-block;
             width: 24px; height: 24px;
@@ -21,6 +21,7 @@
         <button id="eyedropper">スポイト</button>
         <input type="color" id="addcolor">
         <button id="addcolorbtn">パレットに追加</button>
+        <button id="toggleGrid">グリッド：表示中</button>
     </div>
     <div id="palette"></div>
     <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
@@ -28,12 +29,14 @@
         const size = {{ size }};
         const scale = 10;
         const defaultColors = {{ default_colors|tojson }};
-        // パレットをlocalStorageから復元
         let colors = JSON.parse(localStorage.getItem("paletteColors") || "null") || defaultColors.slice();
         let currentColor = localStorage.getItem("paletteCurrentColor") || colors[1] || colors[0];
         let eyedropperMode = false;
         let canvasData = Array.from({length: size}, () => Array(size).fill(colors[0]));
         let latestTimestamp = 0;
+
+        // グリッド表示状態
+        let showGrid = true;
 
         // パレット描画
         function drawPalette() {
@@ -50,7 +53,6 @@
                 }
                 pal.appendChild(span);
             });
-            // パレット保存
             localStorage.setItem("paletteColors", JSON.stringify(colors));
         }
         drawPalette();
@@ -72,19 +74,54 @@
             this.style.background = eyedropperMode ? "#ffd" : "";
         };
 
+        // グリッドON/OFFボタン
+        document.getElementById('toggleGrid').onclick = function() {
+            showGrid = !showGrid;
+            this.textContent = "グリッド：" + (showGrid ? "表示中" : "非表示");
+            redraw();
+        };
+
         // キャンバス描画
-        const ctx = document.getElementById('board').getContext('2d');
+        const cvs = document.getElementById('board');
+        const ctx = cvs.getContext('2d');
         function drawPixel(x, y, color) {
             ctx.fillStyle = color ?? "#fff";
             ctx.fillRect(x * scale, y * scale, scale, scale);
         }
 
-        // 初期ロード: canvas全体取得
-        fetch('/canvas').then(r=>r.json()).then(data => {
-            canvasData = data.canvas;
+        // グリッド描画
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            for(let x=1; x<size; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x*scale,0);
+                ctx.lineTo(x*scale,size*scale);
+                ctx.stroke();
+            }
+            for(let y=1; y<size; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0,y*scale);
+                ctx.lineTo(size*scale,y*scale);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 全体再描画
+        function redraw() {
+            ctx.clearRect(0, 0, size*scale, size*scale);
             for(let y=0; y<size; y++)
                 for(let x=0; x<size; x++)
                     drawPixel(x, y, canvasData[y][x]);
+            if(showGrid) drawGrid();
+        }
+
+        // 初期ロード: canvas全体取得
+        fetch('/canvas').then(r=>r.json()).then(data => {
+            canvasData = data.canvas;
+            redraw();
         });
 
         // 差分取得・描画ループ
@@ -101,13 +138,14 @@
                             changed = true;
                         }
                     }
+                    if(changed && showGrid) drawGrid();
                     setTimeout(pollDiff, changed ? 200 : 600);
                 });
         }
         pollDiff();
 
         // キャンバスクリック
-        document.getElementById('board').addEventListener('click', function(e){
+        cvs.addEventListener('click', function(e){
             const rect = this.getBoundingClientRect();
             const x = Math.floor((e.clientX - rect.left) / scale);
             const y = Math.floor((e.clientY - rect.top) / scale);
