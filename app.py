@@ -2,11 +2,14 @@ from flask import Flask, request, jsonify, render_template
 import time
 import os
 import json
+import threading
 
 app = Flask(__name__)
 SIZE = 100
 DEFAULT_COLORS = ["#fff", "#f00", "#00f", "#0f0", "#000"]
 CANVAS_FILE = "canvas.json"
+SAVE_INTERVAL = 300  # 5分 = 300秒
+
 canvas = [[DEFAULT_COLORS[0] for _ in range(SIZE)] for _ in range(SIZE)]
 updates = []
 
@@ -24,6 +27,11 @@ def load_canvas():
     except Exception:
         pass
 
+def save_canvas_periodically():
+    while True:
+        time.sleep(SAVE_INTERVAL)
+        save_canvas()
+
 @app.route('/')
 def index():
     return render_template('index.html', canvas=canvas, size=SIZE, default_colors=DEFAULT_COLORS)
@@ -40,7 +48,6 @@ def draw():
     if 0 <= x < SIZE and 0 <= y < SIZE:
         canvas[y][x] = color
         updates.append({"x": x, "y": y, "color": color, "timestamp": ts})
-        save_canvas()
     return jsonify(success=True, timestamp=ts)
 
 @app.route('/diff')
@@ -51,5 +58,7 @@ def get_diff():
 
 if __name__ == '__main__':
     load_canvas()
+    t = threading.Thread(target=save_canvas_periodically, daemon=True)
+    t.start()
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
