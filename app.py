@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, render_template
 import time
 
 app = Flask(__name__)
@@ -7,8 +7,8 @@ canvas = [[0 for _ in range(SIZE)] for _ in range(SIZE)]
 updates = []
 
 @app.route('/')
-def root():
-    return send_from_directory('.', 'index.html')
+def index():
+    return render_template('index.html')
 
 @app.route('/canvas')
 def get_canvas():
