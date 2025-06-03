@@ -4,43 +4,100 @@
     <title>Mini r/place</title>
     <style>
         canvas { border: 1px solid #888; }
+        #palette span {
+            display: inline-block;
+            width: 24px; height: 24px;
+            border: 1px solid #999;
+            margin: 2px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        #palette .selected { border: 2px solid #333; }
     </style>
 </head>
 <body>
     <h1>Mini r/place</h1>
-    <select id="color">
-        <option value="1" style="background:red;">Red</option>
-        <option value="2" style="background:blue;">Blue</option>
-        <option value="3" style="background:green;">Green</option>
-        <option value="4" style="background:black;">Black</option>
-    </select>
-    <!-- 拡大率10倍で表示 -->
+    <div>
+        <button id="eyedropper">スポイト</button>
+        <input type="color" id="addcolor">
+        <button id="addcolorbtn">パレットに追加</button>
+    </div>
+    <div id="palette"></div>
     <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
     <script>
         const size = {{ size }};
-        const scale = 10;  // 拡大率
-        const canvasData = {{ canvas|tojson }};
-        const colors = ["#fff", "#f00", "#00f", "#0f0", "#000"];
+        const scale = 10;
+        let canvasData = {{ canvas|tojson }};
+        let colors = ["#fff", "#f00", "#00f", "#0f0", "#000"]; // 0:白,1:赤,2:青,3:緑,4:黒
+        let currentColor = 1; // デフォルトは赤
+        let eyedropperMode = false;
+        
+        // パレット描画
+        function drawPalette() {
+            const pal = document.getElementById('palette');
+            pal.innerHTML = '';
+            colors.forEach((col, idx) => {
+                let span = document.createElement('span');
+                span.style.background = col;
+                if(idx === currentColor) span.classList.add("selected");
+                span.onclick = () => {
+                    currentColor = idx;
+                    drawPalette();
+                }
+                pal.appendChild(span);
+            });
+        }
+        drawPalette();
+
+        // パレットに色追加
+        document.getElementById('addcolorbtn').onclick = function() {
+            const val = document.getElementById('addcolor').value;
+            if(!colors.includes(val)) {
+                colors.push(val);
+                currentColor = colors.length - 1;
+                drawPalette();
+            }
+        };
+
+        // スポイトモード切替
+        document.getElementById('eyedropper').onclick = function() {
+            eyedropperMode = !eyedropperMode;
+            this.style.background = eyedropperMode ? "#ffd" : "";
+        };
+
+        // キャンバス描画
         const ctx = document.getElementById('board').getContext('2d');
         function drawBoard() {
             for(let y=0; y<size; y++){
                 for(let x=0; x<size; x++){
-                    ctx.fillStyle = colors[canvasData[y][x]];
+                    ctx.fillStyle = colors[canvasData[y][x]] ?? "#fff";
                     ctx.fillRect(x * scale, y * scale, scale, scale);
                 }
             }
         }
         drawBoard();
 
+        // キャンバスクリック
         document.getElementById('board').addEventListener('click', function(e){
             const rect = this.getBoundingClientRect();
             const x = Math.floor((e.clientX - rect.left) / scale);
             const y = Math.floor((e.clientY - rect.top) / scale);
-            const color = document.getElementById('color').value;
+
+            if(eyedropperMode) {
+                // スポイト：その座標の色インデックスをパレット選択
+                if (canvasData[y] && canvasData[y][x] !== undefined) {
+                    currentColor = canvasData[y][x];
+                    eyedropperMode = false;
+                    document.getElementById('eyedropper').style.background = "";
+                    drawPalette();
+                }
+                return;
+            }
+
             fetch('/draw', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({x: x, y: y, color: parseInt(color)})
+                body: JSON.stringify({x: x, y: y, color: currentColor})
             }).then(() => location.reload());
         });
     </script>
