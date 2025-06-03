@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import time
+import os
 
 app = Flask(__name__)
 SIZE = 400
@@ -8,6 +9,7 @@ updates = []
 
 @app.route('/')
 def index():
+    # index.htmlにはcanvasは渡さず、JSで/canvas APIを叩く想定
     return render_template('index.html')
 
 @app.route('/canvas')
@@ -31,4 +33,5 @@ def get_diff():
     return jsonify(diff)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
