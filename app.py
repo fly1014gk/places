@@ -3,13 +3,12 @@ import time
 import os
 
 app = Flask(__name__)
-SIZE = 400
+SIZE = 100  # キャンバスサイズを100*100に
 canvas = [[0 for _ in range(SIZE)] for _ in range(SIZE)]
 updates = []
 
 @app.route('/')
 def index():
-    # canvasとsizeをテンプレートへ渡す
     return render_template('index.html', canvas=canvas, size=SIZE)
 
 @app.route('/canvas')
@@ -18,7 +17,6 @@ def get_canvas():
 
 @app.route('/draw', methods=['POST'])
 def draw():
-    # JSONで受け取る
     data = request.get_json()
     x, y, color = data['x'], data['y'], data['color']
     ts = int(time.time())
