@@ -9,7 +9,8 @@ updates = []
 
 @app.route('/')
 def index():
-    return render_template('index.html', canvas=canvas)
+    # canvasとsizeをテンプレートへ渡す
+    return render_template('index.html', canvas=canvas, size=SIZE)
 
 @app.route('/canvas')
 def get_canvas():
@@ -17,7 +18,8 @@ def get_canvas():
 
 @app.route('/draw', methods=['POST'])
 def draw():
-    data = request.json
+    # JSONで受け取る
+    data = request.get_json()
     x, y, color = data['x'], data['y'], data['color']
     ts = int(time.time())
     if 0 <= x < SIZE and 0 <= y < SIZE:
