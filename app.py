@@ -17,11 +17,12 @@ def save_events(events):
         json.dump(events, f, ensure_ascii=False, indent=2)
     try:
         # コミット用のユーザー設定
-        subprocess.run(["git", "config", "user.name", "render-bot"], check=True, cwd=BASE_DIR)
+        subprocess.run(["git", "config", "user.name", "fly1014gk"], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "config", "user.email", "yt.fly.channel@gmail.com"], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "add", EVENTS_FILE], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "commit", "-m", "Update events.json"], check=True, cwd=BASE_DIR)
         if GH_TOKEN and REPO_URL:
+            # mainブランチにpush
             url_with_token = REPO_URL.replace("https://", f"https://{GH_TOKEN}@")
             subprocess.run(["git", "push", url_with_token, "main"], check=True, cwd=BASE_DIR)
         else:
