@@ -30,22 +30,24 @@ def load_canvas():
 
 def git_push_canvas():
     try:
-        subprocess.run(["git", "fetch"], check=True)
-        subprocess.run(["git", "checkout", "main"], check=True)
-        subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=True)  # ←追加
-        subprocess.run(["git", "config", "--global", "user.email", "renderbot@example.com"], check=True)
-        subprocess.run(["git", "config", "--global", "user.name", "renderbot"], check=True)
-        subprocess.run(["git", "add", CANVAS_FILE], check=True)
-        subprocess.run(["git", "commit", "-m", "Periodic update canvas.json"], check=True)
         gh_token = os.environ.get('GH_TOKEN')
-        repo_url = os.environ.get('REPO_URL')
+        repo_url = "https://github.com/fly1014gk/places.git"  # 固定URL
         if gh_token and repo_url:
             push_url = repo_url.replace("https://", f"https://{gh_token}@")
+            subprocess.run(["git", "fetch", push_url], check=True)
+            subprocess.run(["git", "checkout", "main"], check=True)
+            subprocess.run(["git", "pull", "--rebase", push_url, "main"], check=True)
+            subprocess.run(["git", "config", "--global", "user.email", "renderbot@example.com"], check=True)
+            subprocess.run(["git", "config", "--global", "user.name", "renderbot"], check=True)
+            subprocess.run(["git", "add", CANVAS_FILE], check=True)
+            subprocess.run(["git", "commit", "-m", "Periodic update canvas.json"], check=True)
             subprocess.run(["git", "push", push_url, "main"], check=True)
     except Exception as e:
         print("Git push failed:", e)
 
 def save_and_push_periodically():
+    save_canvas()
+    git_push_canvas()  # サーバー起動直後にもpush
     while True:
         time.sleep(SAVE_INTERVAL)
         save_canvas()
