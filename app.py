@@ -18,7 +18,7 @@ def save_events(events):
     try:
         # コミット用のユーザー設定
         subprocess.run(["git", "config", "user.name", "render-bot"], check=True, cwd=BASE_DIR)
-        subprocess.run(["git", "config", "user.email", "render-bot@example.com"], check=True, cwd=BASE_DIR)
+        subprocess.run(["git", "config", "user.email", "yt.fly.channel@gmail.com"], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "add", EVENTS_FILE], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "commit", "-m", "Update events.json"], check=True, cwd=BASE_DIR)
         if GH_TOKEN and REPO_URL:
