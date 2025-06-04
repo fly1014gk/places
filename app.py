@@ -17,7 +17,21 @@ def ensure_git_identity():
     except Exception as e:
         print("Could not set git identity:", e)
 
+def ensure_git_remote():
+    """git remoteがなければ環境変数GIT_REMOTE_URLでoriginを自動追加"""
+    try:
+        remotes = subprocess.run(
+            ["git", "remote"], capture_output=True, text=True, check=True
+        ).stdout.strip().splitlines()
+        if "origin" not in remotes:
+            repo_url = os.environ.get("GIT_REMOTE_URL")
+            if repo_url:
+                subprocess.run(["git", "remote", "add", "origin", repo_url], check=True)
+    except Exception as e:
+        print("Could not set git remote:", e)
+
 ensure_git_identity()
+ensure_git_remote()
 
 def load_events():
     if os.path.exists(EVENTS_FILE):
