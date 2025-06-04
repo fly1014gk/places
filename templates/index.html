@@ -47,7 +47,7 @@
           <div id="icon-editor-wrapper" class="ba-icon-editor-section">
             <label>アイコンエディタ</label>
             <div id="icon-editor">
-              <!-- 既存JSで生成するアイコンエディタUIをここに -->
+              <!-- 既存のJSで生成するアイコンエディタUIをここに -->
             </div>
             <button type="button" id="clear-icon-btn" class="ba-btn ba-btn-sub">リセット</button>
           </div>
@@ -55,7 +55,7 @@
           <div id="participants-wrapper" class="ba-participants-section">
             <label>参加者</label>
             <div id="participants-list">
-              <!-- 既存JSで生成する参加者リストUIをここに -->
+              <!-- 既存のJSで生成する参加者リストUIをここに -->
             </div>
             <input type="text" id="add-participant-input" placeholder="参加者追加..." />
             <button type="button" id="add-participant-btn" class="ba-btn ba-btn-sub">追加</button>
@@ -68,6 +68,58 @@
   <footer class="ba-footer">
     <small>非公式 Blue Archive イベント管理デモ | © 2025</small>
   </footer>
-  <script src="static/main.js"></script>
+  <script>
+    // イベント一覧取得＆表示
+    async function loadEvents() {
+      const res = await fetch('/api/events');
+      const events = await res.json();
+      const el = document.getElementById('events-list');
+      if (!events.length) {
+        el.innerHTML = '<div class="ba-empty">イベントはまだありません</div>';
+        return;
+      }
+      el.innerHTML = events.map(event => `
+        <div class="ba-event-card">
+          <div class="ba-event-card-header">
+            <span class="ba-event-title">${event.title || 'タイトルなし'}</span>
+            <span class="ba-event-date">${event.date || ''}</span>
+          </div>
+          <div class="ba-event-desc">${event.description || ''}</div>
+          <div class="ba-event-participants">
+            ${event.participants && event.participants.length ? event.participants.map(p => `<span class="ba-participant">${p}</span>`).join('') : '<span class="ba-empty">参加者なし</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // モーダル制御
+    document.getElementById('add-event-btn').onclick = () => {
+      document.getElementById('event-form').reset();
+      document.getElementById('modal-title').innerText = 'イベント作成';
+      document.getElementById('event-modal').style.display = 'flex';
+    };
+    document.getElementById('close-modal-btn').onclick = () => {
+      document.getElementById('event-modal').style.display = 'none';
+    };
+
+    // イベント新規追加
+    document.getElementById('event-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('event-title').value;
+      const description = document.getElementById('event-description').value;
+      const date = document.getElementById('event-date').value;
+      // 必要ならアイコンや参加者もここで取得
+      await fetch('/api/events', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ title, description, date })
+      });
+      document.getElementById('event-modal').style.display = 'none';
+      loadEvents();
+    };
+
+    // 初回ロード
+    window.onload = loadEvents;
+  </script>
 </body>
 </html>
