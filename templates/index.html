@@ -1,125 +1,203 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Blue Archive Event Manager</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="static/style.css">
+    <title>Mini r/place</title>
+    <style>
+        body { margin: 0; }
+        .toolbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: #fafafa;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 20px;
+            z-index: 100;
+        }
+        #palette {
+            display: flex;
+            gap: 4px;
+        }
+        #palette span {
+            display: inline-block;
+            width: 24px; height: 24px;
+            border: 1.5px solid #999;
+            margin: 0;
+            cursor: pointer;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        #palette .selected { border: 2.5px solid #333; }
+        .canvas-container {
+            margin-top: 70px; /* Toolbar高さ+余白 */
+            display: flex;
+            justify-content: center;
+        }
+        canvas { border: 1px solid #888; background: #fff; }
+        h1 { margin: 16px 0 0 0; text-align: center; }
+        @media (max-width: 600px) {
+            .toolbar { flex-direction: column; gap: 8px; }
+            .canvas-container { margin-top: 110px; }
+        }
+    </style>
 </head>
 <body>
-  <header class="ba-header">
-    <div class="ba-logo">
-      <span class="logo-main">Blue Archive</span>
-      <span class="logo-sub">Event Manager</span>
+    <h1>Mini r/place</h1>
+    <div class="toolbar">
+        <button id="eyedropper">スポイト</button>
+        <input type="color" id="addcolor">
+        <button id="addcolorbtn">パレットに追加</button>
+        <button id="toggleGrid">グリッド：表示中</button>
+        <div id="palette"></div>
     </div>
-    <nav>
-      <ul>
-        <li><a href="#" class="active">イベント一覧</a></li>
-        <li><a href="#">ガイド</a></li>
-      </ul>
-    </nav>
-  </header>
-  <main class="ba-main">
-    <section class="ba-event-section">
-      <h1 class="ba-section-title">イベント一覧</h1>
-      <div id="events-list" class="ba-events-grid">
-        <!-- イベントカードはJSで挿入 -->
-      </div>
-      <button id="add-event-btn" class="ba-btn ba-btn-main">＋ 新しいイベントを追加</button>
-    </section>
-    <!-- イベント作成・編集モーダル -->
-    <div id="event-modal" class="ba-modal" style="display:none;">
-      <div class="ba-modal-content">
-        <span class="ba-modal-close" id="close-modal-btn">&times;</span>
-        <h2 id="modal-title">イベント作成/編集</h2>
-        <form id="event-form">
-          <label>タイトル
-            <input type="text" id="event-title" name="title" required>
-          </label>
-          <label>説明
-            <textarea id="event-description" name="description" rows="3"></textarea>
-          </label>
-          <label>日付
-            <input type="date" id="event-date" name="date" required>
-          </label>
-          <!-- アイコンエディタ -->
-          <div id="icon-editor-wrapper" class="ba-icon-editor-section">
-            <label>アイコンエディタ</label>
-            <div id="icon-editor">
-              <!-- 既存のJSで生成するアイコンエディタUIをここに -->
-            </div>
-            <button type="button" id="clear-icon-btn" class="ba-btn ba-btn-sub">リセット</button>
-          </div>
-          <!-- 参加者管理 -->
-          <div id="participants-wrapper" class="ba-participants-section">
-            <label>参加者</label>
-            <div id="participants-list">
-              <!-- 既存のJSで生成する参加者リストUIをここに -->
-            </div>
-            <input type="text" id="add-participant-input" placeholder="参加者追加..." />
-            <button type="button" id="add-participant-btn" class="ba-btn ba-btn-sub">追加</button>
-          </div>
-          <button type="submit" class="ba-btn ba-btn-main">保存</button>
-        </form>
-      </div>
+    <div class="canvas-container">
+        <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
     </div>
-  </main>
-  <footer class="ba-footer">
-    <small>非公式 Blue Archive イベント管理デモ | © 2025</small>
-  </footer>
-  <script>
-    // イベント一覧取得＆表示
-    async function loadEvents() {
-      const res = await fetch('/api/events');
-      const events = await res.json();
-      const el = document.getElementById('events-list');
-      if (!events.length) {
-        el.innerHTML = '<div class="ba-empty">イベントはまだありません</div>';
-        return;
-      }
-      el.innerHTML = events.map(event => `
-        <div class="ba-event-card">
-          <div class="ba-event-card-header">
-            <span class="ba-event-title">${event.title || 'タイトルなし'}</span>
-            <span class="ba-event-date">${event.date || ''}</span>
-          </div>
-          <div class="ba-event-desc">${event.description || ''}</div>
-          <div class="ba-event-participants">
-            ${event.participants && event.participants.length ? event.participants.map(p => `<span class="ba-participant">${p}</span>`).join('') : '<span class="ba-empty">参加者なし</span>'}
-          </div>
-        </div>
-      `).join('');
-    }
+    <script>
+        const size = {{ size }};
+        const scale = 10;
+        const defaultColors = {{ default_colors|tojson }};
+        let colors = JSON.parse(localStorage.getItem("paletteColors") || "null") || defaultColors.slice();
+        let currentColor = localStorage.getItem("paletteCurrentColor") || colors[1] || colors[0];
+        let eyedropperMode = false;
+        let canvasData = Array.from({length: size}, () => Array(size).fill(colors[0]));
+        let latestTimestamp = 0;
 
-    // モーダル制御
-    document.getElementById('add-event-btn').onclick = () => {
-      document.getElementById('event-form').reset();
-      document.getElementById('modal-title').innerText = 'イベント作成';
-      document.getElementById('event-modal').style.display = 'flex';
-    };
-    document.getElementById('close-modal-btn').onclick = () => {
-      document.getElementById('event-modal').style.display = 'none';
-    };
+        // グリッド表示状態
+        let showGrid = true;
 
-    // イベント新規追加
-    document.getElementById('event-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const title = document.getElementById('event-title').value;
-      const description = document.getElementById('event-description').value;
-      const date = document.getElementById('event-date').value;
-      // 必要ならアイコンや参加者もここで取得
-      await fetch('/api/events', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ title, description, date })
-      });
-      document.getElementById('event-modal').style.display = 'none';
-      loadEvents();
-    };
+        // パレット描画
+        function drawPalette() {
+            const pal = document.getElementById('palette');
+            pal.innerHTML = '';
+            colors.forEach((col) => {
+                let span = document.createElement('span');
+                span.style.background = col;
+                if(col === currentColor) span.classList.add("selected");
+                span.onclick = () => {
+                    currentColor = col;
+                    localStorage.setItem("paletteCurrentColor", currentColor); // 選択色を保存
+                    drawPalette();
+                }
+                pal.appendChild(span);
+            });
+            localStorage.setItem("paletteColors", JSON.stringify(colors));
+        }
+        drawPalette();
 
-    // 初回ロード
-    window.onload = loadEvents;
-  </script>
+        // パレットに色追加
+        document.getElementById('addcolorbtn').onclick = function() {
+            const val = document.getElementById('addcolor').value;
+            if(!colors.includes(val)) {
+                colors.push(val);
+                currentColor = val;
+                drawPalette();
+                localStorage.setItem("paletteCurrentColor", currentColor);
+            }
+        };
+
+        // スポイトモード切替
+        document.getElementById('eyedropper').onclick = function() {
+            eyedropperMode = !eyedropperMode;
+            this.style.background = eyedropperMode ? "#ffd" : "";
+        };
+
+        // グリッドON/OFFボタン
+        document.getElementById('toggleGrid').onclick = function() {
+            showGrid = !showGrid;
+            this.textContent = "グリッド：" + (showGrid ? "表示中" : "非表示");
+            redraw();
+        };
+
+        // キャンバス描画
+        const cvs = document.getElementById('board');
+        const ctx = cvs.getContext('2d');
+        function drawPixel(x, y, color) {
+            ctx.fillStyle = color ?? "#fff";
+            ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+
+        // グリッド描画
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            for(let x=1; x<size; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x*scale,0);
+                ctx.lineTo(x*scale,size*scale);
+                ctx.stroke();
+            }
+            for(let y=1; y<size; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0,y*scale);
+                ctx.lineTo(size*scale,y*scale);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 全体再描画
+        function redraw() {
+            ctx.clearRect(0, 0, size*scale, size*scale);
+            for(let y=0; y<size; y++)
+                for(let x=0; x<size; x++)
+                    drawPixel(x, y, canvasData[y][x]);
+            if(showGrid) drawGrid();
+        }
+
+        // 初期ロード: canvas全体取得
+        fetch('/canvas').then(r=>r.json()).then(data => {
+            canvasData = data.canvas;
+            redraw();
+        });
+
+        // 差分取得・描画ループ
+        function pollDiff() {
+            fetch(`/diff?since=${latestTimestamp}`)
+                .then(r=>r.json())
+                .then(diffArr => {
+                    let changed = false;
+                    for(const u of diffArr) {
+                        if(u.timestamp > latestTimestamp) latestTimestamp = u.timestamp;
+                        if(u.x >= 0 && u.x < size && u.y >= 0 && u.y < size) {
+                            canvasData[u.y][u.x] = u.color;
+                            drawPixel(u.x, u.y, u.color);
+                            changed = true;
+                        }
+                    }
+                    if(changed && showGrid) drawGrid();
+                    setTimeout(pollDiff, changed ? 200 : 600);
+                });
+        }
+        pollDiff();
+
+        // キャンバスクリック
+        cvs.addEventListener('click', function(e){
+            const rect = this.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / scale);
+            const y = Math.floor((e.clientY - rect.top) / scale);
+
+            if(eyedropperMode) {
+                if (canvasData[y] && canvasData[y][x] !== undefined) {
+                    currentColor = canvasData[y][x];
+                    localStorage.setItem("paletteCurrentColor", currentColor);
+                    eyedropperMode = false;
+                    document.getElementById('eyedropper').style.background = "";
+                    drawPalette();
+                }
+                return;
+            }
+
+            fetch('/draw', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({x: x, y: y, color: currentColor})
+            });
+            // ページリロードしない。差分で自動反映される
+        });
+    </script>
 </body>
 </html>
+
