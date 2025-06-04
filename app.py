@@ -4,11 +4,13 @@ import json
 import threading
 import subprocess
 from flask import Flask, request, jsonify, render_template
+from PIL import Image
 
 app = Flask(__name__)
 SIZE = 100
 DEFAULT_COLORS = ["#fff", "#f00", "#00f", "#0f0", "#000"]
 CANVAS_FILE = "canvas.json"
+CANVAS_PNG = "canvas.png"
 SAVE_INTERVAL = 300  # 5分
 
 canvas = [[DEFAULT_COLORS[0] for _ in range(SIZE)] for _ in range(SIZE)]
@@ -17,9 +19,35 @@ updates = []
 def save_canvas():
     with open(CANVAS_FILE, "w", encoding="utf-8") as f:
         json.dump(canvas, f)
+    save_canvas_as_png(CANVAS_PNG)
+
+def save_canvas_as_png(filename="canvas.png"):
+    img = Image.new('RGB', (SIZE, SIZE), color="#fff")
+    pixels = img.load()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            color = canvas[y][x].lstrip('#')
+            if len(color) == 3:
+                color = ''.join([c*2 for c in color])
+            rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+            pixels[x, y] = rgb
+    img.save(filename)
 
 def load_canvas():
     global canvas
+    # 1. PNGから復元を試みる
+    if os.path.exists(CANVAS_PNG):
+        try:
+            img = Image.open(CANVAS_PNG).convert("RGB")
+            if img.size == (SIZE, SIZE):
+                for y in range(SIZE):
+                    for x in range(SIZE):
+                        rgb = img.getpixel((x, y))
+                        canvas[y][x] = '#{:02x}{:02x}{:02x}'.format(*rgb)
+                return
+        except Exception as e:
+            print("Failed to load from PNG:", e)
+    # 2. PNGがなければJSONから復元
     try:
         with open(CANVAS_FILE, "r", encoding="utf-8") as f:
             loaded = json.load(f)
@@ -40,7 +68,8 @@ def git_push_canvas():
             subprocess.run(["git", "config", "--global", "user.email", "renderbot@example.com"], check=True)
             subprocess.run(["git", "config", "--global", "user.name", "renderbot"], check=True)
             subprocess.run(["git", "add", CANVAS_FILE], check=True)
-            subprocess.run(["git", "commit", "-m", "Periodic update canvas.json"], check=True)
+            subprocess.run(["git", "add", CANVAS_PNG], check=True)
+            subprocess.run(["git", "commit", "-m", "Periodic update canvas.json & canvas.png"], check=True)
             subprocess.run(["git", "push", push_url, "main"], check=True)
     except Exception as e:
         print("Git push failed:", e)
