@@ -1,20 +1,38 @@
 import os
 import json
+import subprocess
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 
-EVENTS_FILE = "events.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EVENTS_FILE = os.path.join(BASE_DIR, "events.json")
+
+# 環境変数からGitHubトークンとリポジトリURLを取得
+GH_TOKEN = os.environ.get('GH_TOKEN')
+REPO_URL = os.environ.get('REPO_URL')
+
+def save_events(events):
+    with open(EVENTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(events, f, ensure_ascii=False, indent=2)
+    # Git add/commit/push
+    try:
+        subprocess.run(["git", "add", EVENTS_FILE], check=True, cwd=BASE_DIR)
+        subprocess.run(["git", "commit", "-m", "Update events.json"], check=True, cwd=BASE_DIR)
+        if GH_TOKEN and REPO_URL:
+            # REPO_URL: https://github.com/USER/REPO.git → https://<token>@github.com/USER/REPO.git
+            url_with_token = REPO_URL.replace("https://", f"https://{GH_TOKEN}@")
+            subprocess.run(["git", "push", url_with_token, "main"], check=True, cwd=BASE_DIR)
+        else:
+            print("GH_TOKENまたはREPO_URLが未設定です")
+    except subprocess.CalledProcessError as e:
+        print(f"Git push failed: {e}")
 
 def load_events():
     if os.path.exists(EVENTS_FILE):
         with open(EVENTS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
-
-def save_events(events):
-    with open(EVENTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(events, f, ensure_ascii=False)
 
 @app.route('/')
 def index():
