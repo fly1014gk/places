@@ -59,17 +59,17 @@ def load_canvas():
 def git_push_canvas():
     try:
         gh_token = os.environ.get('GH_TOKEN')
-        repo_url = "https://github.com/fly1014gk/places.git"  # 固定URL
+        repo_url = "https://github.com/fly1014gk/places.git"
         if gh_token and repo_url:
             push_url = repo_url.replace("https://", f"https://{gh_token}@")
-            subprocess.run(["git", "fetch", push_url], check=True)
-            subprocess.run(["git", "checkout", "main"], check=True)
-            subprocess.run(["git", "pull", "--rebase", push_url, "main"], check=True)
             subprocess.run(["git", "config", "--global", "user.email", "renderbot@example.com"], check=True)
             subprocess.run(["git", "config", "--global", "user.name", "renderbot"], check=True)
             subprocess.run(["git", "add", CANVAS_FILE], check=True)
             subprocess.run(["git", "add", CANVAS_PNG], check=True)
-            subprocess.run(["git", "commit", "-m", "Periodic update canvas.json & canvas.png"], check=True)
+            subprocess.run(["git", "commit", "-m", "Periodic update canvas.json & canvas.png"], check=False)
+            subprocess.run(["git", "fetch", push_url], check=True)
+            subprocess.run(["git", "checkout", "main"], check=True)
+            subprocess.run(["git", "pull", "--rebase", push_url, "main"], check=True)
             subprocess.run(["git", "push", push_url, "main"], check=True)
     except Exception as e:
         print("Git push failed:", e)
