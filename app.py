@@ -7,6 +7,18 @@ app = Flask(__name__)
 
 EVENTS_FILE = "events.json"
 
+def ensure_git_identity():
+    """Render等でgit config未設定のままコミットしようとするとエラーになるため、起動時に一度設定"""
+    name = os.environ.get("GIT_AUTHOR_NAME", "Render Bot")
+    email = os.environ.get("GIT_AUTHOR_EMAIL", "bot@example.com")
+    try:
+        subprocess.run(["git", "config", "--global", "user.name", name], check=True)
+        subprocess.run(["git", "config", "--global", "user.email", email], check=True)
+    except Exception as e:
+        print("Could not set git identity:", e)
+
+ensure_git_identity()
+
 def load_events():
     if os.path.exists(EVENTS_FILE):
         with open(EVENTS_FILE, "r", encoding="utf-8") as f:
@@ -41,6 +53,8 @@ def api_add_event():
     data['id'] = max([e.get('id', 0) for e in events], default=0) + 1
     if "icon" not in data:
         data["icon"] = [["#fff"]*20 for _ in range(20)]
+    if "participants" not in data:
+        data["participants"] = []
     events.append(data)
     save_events(events)
     return jsonify({"ok": True})
@@ -50,7 +64,14 @@ def api_edit_event(event_id):
     events = load_events()
     for e in events:
         if e['id'] == event_id:
-            e.update(request.json)
+            # merge participants instead of overwrite if both exist
+            if "participants" in request.json and "participants" in e:
+                plist = request.json.get("participants")
+                if isinstance(plist, list):
+                    e["participants"] = plist
+                else:
+                    e["participants"] = []
+            e.update({k:v for k,v in request.json.items() if k!="participants"})
             break
     save_events(events)
     return jsonify({"ok": True})
