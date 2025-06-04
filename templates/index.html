@@ -3,28 +3,57 @@
 <head>
     <title>Mini r/place</title>
     <style>
-        canvas { border: 1px solid #888; background: #fff; }
+        body { margin: 0; }
+        .toolbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: #fafafa;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 20px;
+            z-index: 100;
+        }
+        #palette {
+            display: flex;
+            gap: 4px;
+        }
         #palette span {
             display: inline-block;
             width: 24px; height: 24px;
-            border: 1px solid #999;
-            margin: 2px;
+            border: 1.5px solid #999;
+            margin: 0;
             cursor: pointer;
             vertical-align: middle;
+            box-sizing: border-box;
         }
-        #palette .selected { border: 2px solid #333; }
+        #palette .selected { border: 2.5px solid #333; }
+        .canvas-container {
+            margin-top: 70px; /* Toolbar高さ+余白 */
+            display: flex;
+            justify-content: center;
+        }
+        canvas { border: 1px solid #888; background: #fff; }
+        h1 { margin: 16px 0 0 0; text-align: center; }
+        @media (max-width: 600px) {
+            .toolbar { flex-direction: column; gap: 8px; }
+            .canvas-container { margin-top: 110px; }
+        }
     </style>
 </head>
 <body>
     <h1>Mini r/place</h1>
-    <div>
+    <div class="toolbar">
         <button id="eyedropper">スポイト</button>
         <input type="color" id="addcolor">
         <button id="addcolorbtn">パレットに追加</button>
         <button id="toggleGrid">グリッド：表示中</button>
+        <div id="palette"></div>
     </div>
-    <div id="palette"></div>
-    <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
+    <div class="canvas-container">
+        <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
+    </div>
     <script>
         const size = {{ size }};
         const scale = 10;
