@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>イベント表 + アイコンエディタ + Mini r/place</title>
+  <title>イベント表 + アイコンエディタ</title>
   <style>
     body { font-family: sans-serif; }
     #icon-editor-modal {
@@ -20,29 +20,8 @@
     #close-editor { margin-top: 10px; }
     table { border-collapse: collapse; }
     td,th { border:1px solid #ccc; padding:4px; }
-    #rplace-section { margin-top: 48px; }
-    .toolbar {
-      margin-bottom: 10px;
-      background: #fafafa;
-      border-bottom: 1px solid #ccc;
-      padding: 8px 0;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    #rplace-palette span {
-      display: inline-block;
-      width: 24px; height: 24px;
-      border: 1px solid #999;
-      margin: 2px;
-      cursor: pointer;
-      vertical-align: middle;
-    }
-    #rplace-palette .selected { border: 2px solid #333; }
-    @media (max-width: 600px) {
-      .toolbar { flex-direction: column; gap: 8px; }
-    }
+    .toolbar { margin-bottom: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    @media (max-width: 600px) { .toolbar { flex-direction: column; gap: 8px; } }
   </style>
 </head>
 <body>
@@ -60,6 +39,12 @@
   <div id="icon-editor-modal">
     <div id="icon-editor">
       <h3>アイコン編集</h3>
+      <div class="toolbar">
+        <button id="eyedropper">スポイト</button>
+        <input type="color" id="addcolor">
+        <button id="addcolorbtn">パレットに追加</button>
+        <button id="toggleGrid">グリッド：表示中</button>
+      </div>
       <canvas id="icon-canvas" width="200" height="200"></canvas>
       <div id="icon-palette"></div>
       <button onclick="clearIcon()">クリア</button>
@@ -68,17 +53,6 @@
     </div>
   </div>
 
-  <div id="rplace-section">
-    <h2>Mini r/place</h2>
-    <div class="toolbar">
-      <button id="eyedropper">スポイト</button>
-      <input type="color" id="addcolor">
-      <button id="addcolorbtn">パレットに追加</button>
-      <button id="toggleGrid">グリッド：表示中</button>
-      <div id="rplace-palette"></div>
-    </div>
-    <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
-  </div>
   <script>
     // --- イベント表 + アイコンエディタ ---
     let events = [];
@@ -87,8 +61,10 @@
     const iconSize = 20;
     const iconScale = 10;
     let iconData = Array.from({length: iconSize}, () => Array(iconSize).fill("#fff"));
-    const paletteColors = ["#fff","#f00","#00f","#0f0","#000","#ff0","#0ff","#f0f"];
+    let paletteColors = ["#fff","#f00","#00f","#0f0","#000","#ff0","#0ff","#f0f"];
     let currentColor = paletteColors[1];
+    let eyedropperMode = false;
+    let showGrid = true;
 
     function openIconEditor(eventId) {
       editingEventId = eventId;
@@ -104,6 +80,8 @@
     }
     function closeIconEditor() {
       document.getElementById('icon-editor-modal').style.display = "none";
+      eyedropperMode = false;
+      document.getElementById('eyedropper').style.background = '';
     }
     function drawPalette() {
       const pal = document.getElementById('icon-palette'); pal.innerHTML = '';
@@ -124,12 +102,14 @@
         ctx.fillRect(x*iconScale, y*iconScale, iconScale, iconScale);
       }
       // グリッド
-      ctx.strokeStyle="#ccc"; ctx.lineWidth=1;
-      for(let i=1;i<iconSize;i++) {
-        ctx.beginPath();
-        ctx.moveTo(i*iconScale,0); ctx.lineTo(i*iconScale,iconSize*iconScale); ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0,i*iconScale); ctx.lineTo(iconSize*iconScale,i*iconScale); ctx.stroke();
+      if (showGrid) {
+        ctx.strokeStyle="#ccc"; ctx.lineWidth=1;
+        for(let i=1;i<iconSize;i++) {
+          ctx.beginPath();
+          ctx.moveTo(i*iconScale,0); ctx.lineTo(i*iconScale,iconSize*iconScale); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0,i*iconScale); ctx.lineTo(iconSize*iconScale,i*iconScale); ctx.stroke();
+        }
       }
     }
     document.getElementById('icon-canvas').addEventListener('click', function(e){
@@ -137,10 +117,34 @@
       const x = Math.floor((e.clientX-rect.left)/iconScale);
       const y = Math.floor((e.clientY-rect.top)/iconScale);
       if(x>=0&&x<iconSize&&y>=0&&y<iconSize) {
-        iconData[y][x]=currentColor;
+        if (eyedropperMode) {
+          currentColor = iconData[y][x];
+          drawPalette();
+          eyedropperMode = false;
+          document.getElementById('eyedropper').style.background = '';
+        } else {
+          iconData[y][x]=currentColor;
+        }
         drawIconCanvas();
       }
     });
+    document.getElementById('eyedropper').onclick = function() {
+      eyedropperMode = !eyedropperMode;
+      this.style.background = eyedropperMode ? "#ffd" : "";
+    };
+    document.getElementById('addcolorbtn').onclick = function() {
+      const val = document.getElementById('addcolor').value;
+      if(!paletteColors.includes(val)) {
+        paletteColors.push(val);
+        currentColor = val;
+        drawPalette();
+      }
+    };
+    document.getElementById('toggleGrid').onclick = function() {
+      showGrid = !showGrid;
+      this.textContent = "グリッド：" + (showGrid ? "表示中" : "非表示");
+      drawIconCanvas();
+    };
     function clearIcon() {
       iconData = Array.from({length: iconSize}, () => Array(iconSize).fill("#fff"));
       drawIconCanvas();
@@ -205,132 +209,6 @@
       loadEvents();
     }
     window.onload = loadEvents;
-
-    // --- Mini r/place ---
-    const size = {{ size }};
-    const scale = 10;
-    const defaultColors = {{ default_colors|tojson }};
-    let rplaceColors = JSON.parse(localStorage.getItem("paletteColors") || "null") || defaultColors.slice();
-    let rplaceCurrentColor = localStorage.getItem("paletteCurrentColor") || rplaceColors[1] || rplaceColors[0];
-    let eyedropperMode = false;
-    let canvasData = Array.from({length: size}, () => Array(size).fill(rplaceColors[0]));
-    let latestTimestamp = 0;
-    let showGrid = true;
-
-    function drawRPlacePalette() {
-      const pal = document.getElementById('rplace-palette');
-      pal.innerHTML = '';
-      rplaceColors.forEach((col) => {
-        let span = document.createElement('span');
-        span.style.background = col;
-        if(col === rplaceCurrentColor) span.classList.add("selected");
-        span.onclick = () => {
-          rplaceCurrentColor = col;
-          localStorage.setItem("paletteCurrentColor", rplaceCurrentColor);
-          drawRPlacePalette();
-        }
-        pal.appendChild(span);
-      });
-      localStorage.setItem("paletteColors", JSON.stringify(rplaceColors));
-    }
-    drawRPlacePalette();
-
-    document.getElementById('addcolorbtn').onclick = function() {
-      const val = document.getElementById('addcolor').value;
-      if(!rplaceColors.includes(val)) {
-        rplaceColors.push(val);
-        rplaceCurrentColor = val;
-        drawRPlacePalette();
-        localStorage.setItem("paletteCurrentColor", rplaceCurrentColor);
-      }
-    };
-
-    document.getElementById('eyedropper').onclick = function() {
-      eyedropperMode = !eyedropperMode;
-      this.style.background = eyedropperMode ? "#ffd" : "";
-    };
-
-    document.getElementById('toggleGrid').onclick = function() {
-      showGrid = !showGrid;
-      this.textContent = "グリッド：" + (showGrid ? "表示中" : "非表示");
-      redrawRPlace();
-    };
-
-    const cvs = document.getElementById('board');
-    const ctx = cvs.getContext('2d');
-    function drawPixel(x, y, color) {
-      ctx.fillStyle = color ?? "#fff";
-      ctx.fillRect(x * scale, y * scale, scale, scale);
-    }
-    function drawGrid() {
-      ctx.save();
-      ctx.strokeStyle = "#ccc";
-      ctx.lineWidth = 1;
-      for(let x=1; x<size; x++) {
-        ctx.beginPath();
-        ctx.moveTo(x*scale,0);
-        ctx.lineTo(x*scale,size*scale);
-        ctx.stroke();
-      }
-      for(let y=1; y<size; y++) {
-        ctx.beginPath();
-        ctx.moveTo(0,y*scale);
-        ctx.lineTo(size*scale,y*scale);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-    function redrawRPlace() {
-      ctx.clearRect(0, 0, size*scale, size*scale);
-      for(let y=0; y<size; y++)
-        for(let x=0; x<size; x++)
-          drawPixel(x, y, canvasData[y][x]);
-      if(showGrid) drawGrid();
-    }
-    fetch('/canvas').then(r=>r.json()).then(data => {
-      canvasData = data.canvas;
-      redrawRPlace();
-    });
-    function pollDiff() {
-      fetch(`/diff?since=${latestTimestamp}`)
-        .then(r=>r.json())
-        .then(diffArr => {
-          let changed = false;
-          for(const u of diffArr) {
-            if(u.timestamp > latestTimestamp) latestTimestamp = u.timestamp;
-            if(u.x >= 0 && u.x < size && u.y >= 0 && u.y < size) {
-              canvasData[u.y][u.x] = u.color;
-              drawPixel(u.x, u.y, u.color);
-              changed = true;
-            }
-          }
-          if(changed && showGrid) drawGrid();
-          setTimeout(pollDiff, changed ? 200 : 600);
-        });
-    }
-    pollDiff();
-
-    cvs.addEventListener('click', function(e){
-      const rect = this.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / scale);
-      const y = Math.floor((e.clientY - rect.top) / scale);
-
-      if(eyedropperMode) {
-        if (canvasData[y] && canvasData[y][x] !== undefined) {
-          rplaceCurrentColor = canvasData[y][x];
-          localStorage.setItem("paletteCurrentColor", rplaceCurrentColor);
-          eyedropperMode = false;
-          document.getElementById('eyedropper').style.background = "";
-          drawRPlacePalette();
-        }
-        return;
-      }
-      fetch('/draw', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({x: x, y: y, color: rplaceCurrentColor})
-      });
-    });
   </script>
 </body>
 </html>
