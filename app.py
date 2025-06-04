@@ -15,12 +15,13 @@ REPO_URL = os.environ.get('REPO_URL')
 def save_events(events):
     with open(EVENTS_FILE, "w", encoding="utf-8") as f:
         json.dump(events, f, ensure_ascii=False, indent=2)
-    # Git add/commit/push
     try:
+        # コミット用のユーザー設定
+        subprocess.run(["git", "config", "user.name", "render-bot"], check=True, cwd=BASE_DIR)
+        subprocess.run(["git", "config", "user.email", "render-bot@example.com"], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "add", EVENTS_FILE], check=True, cwd=BASE_DIR)
         subprocess.run(["git", "commit", "-m", "Update events.json"], check=True, cwd=BASE_DIR)
         if GH_TOKEN and REPO_URL:
-            # REPO_URL: https://github.com/USER/REPO.git → https://<token>@github.com/USER/REPO.git
             url_with_token = REPO_URL.replace("https://", f"https://{GH_TOKEN}@")
             subprocess.run(["git", "push", url_with_token, "main"], check=True, cwd=BASE_DIR)
         else:
