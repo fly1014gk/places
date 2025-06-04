@@ -2,57 +2,205 @@
 <html>
 <head>
   <title>イベント表 + アイコンエディタ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body { font-family: sans-serif; }
+    :root {
+      --main-bg: #f7fbfd;
+      --accent: #cce4f6;
+      --white: #fff;
+      --primary: #40a0e0;
+      --border: #d7e6ef;
+      --shadow: 0 2px 8px #aad2ee33;
+      --text-main: #222;
+      --text-sub: #7aa3bd;
+    }
+    body {
+      background: var(--main-bg);
+      color: var(--text-main);
+      font-family: 'Segoe UI', 'Hiragino Sans', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    h2 {
+      text-align: center;
+      margin: 32px 0 18px 0;
+      color: var(--primary);
+      letter-spacing: 1px;
+      font-weight: 700;
+    }
+    table {
+      margin: 0 auto 24px auto;
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      min-width: 320px;
+      max-width: 640px;
+      width: 90%;
+    }
+    th, td {
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    th {
+      background: var(--accent);
+      font-weight: 600;
+    }
+    tr:last-child td { border-bottom: none; }
+    button {
+      background: var(--primary);
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      padding: 7px 18px;
+      font-size: 1em;
+      font-weight: 500;
+      box-shadow: 0 1px 3px #aad2ee22;
+      margin: 2px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover, button:focus {
+      background: #2596e3;
+    }
+    #add-form {
+      background: var(--white);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin: 0 auto 22px auto;
+      width: 340px;
+      max-width: 94vw;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #add-form input[type="date"],
+    #add-form input[type="text"] {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px;
+      font-size: 1em;
+      width: 100%;
+      background: var(--main-bg);
+    }
     #icon-editor-modal {
       display:none; position: fixed; left:0; top:0; right:0; bottom:0;
-      background: rgba(0,0,0,0.3); z-index: 1000; justify-content: center; align-items: center;
+      background: rgba(180,210,240,0.22); z-index: 1000; justify-content: center; align-items: center;
     }
     #icon-editor {
-      background: #fff; padding: 16px; border-radius: 8px;
-      box-shadow: 0 0 20px #3334; display: flex; flex-direction: column; align-items: center;
+      background: var(--white);
+      padding: 24px 30px;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 280px;
+      max-width: 94vw;
+      gap: 8px;
     }
-    #icon-canvas { border: 1px solid #888; background: #fff; image-rendering: pixelated; }
+    #icon-editor h3 {
+      color: var(--primary);
+      font-size: 1.15em;
+      letter-spacing: 1px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    #icon-canvas {
+      border: 2px solid var(--accent);
+      background: var(--main-bg);
+      image-rendering: pixelated;
+      margin-bottom: 9px;
+      border-radius: 8px;
+      transition: box-shadow 0.2s;
+      box-shadow: 0 2px 10px #aad2ee21;
+    }
+    #icon-palette {
+      margin-bottom: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+    }
     #icon-palette span {
-      display: inline-block; width: 20px; height: 20px; border: 1px solid #999; margin: 2px; cursor: pointer;
+      display: inline-block;
+      width: 22px; height: 22px;
+      border: 1.5px solid var(--border);
+      margin: 0 2px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: border 0.15s;
+      box-shadow: 0 1px 2px #aad2ee15;
     }
-    #icon-palette .selected { border: 2px solid #333; }
-    #close-editor { margin-top: 10px; }
-    table { border-collapse: collapse; }
-    td,th { border:1px solid #ccc; padding:4px; }
-    .toolbar { margin-bottom: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    @media (max-width: 600px) { .toolbar { flex-direction: column; gap: 8px; } }
+    #icon-palette .selected {
+      border: 2.5px solid var(--primary);
+    }
+    .toolbar {
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .toolbar button, .toolbar input[type=color] {
+      margin: 0 2px;
+      height: 32px;
+      vertical-align: middle;
+    }
+    .toolbar button {
+      padding: 6px 13px;
+      font-size: 0.98em;
+    }
+    .toolbar #eyedropper.active { background: #d2f1ff; color: var(--primary);}
+    .toolbar #toggleGrid { min-width: 90px;}
+    @media (max-width: 600px) {
+      table { font-size: 0.94em;}
+      th, td { padding: 8px 6px; }
+      #icon-editor { padding: 14px 3vw; }
+      #add-form { width: 96vw;}
+    }
   </style>
 </head>
 <body>
   <h2>イベント表</h2>
   <table id="event-table"></table>
-  <button onclick="showAddForm()">イベント追加</button>
-  <div id="add-form" style="display:none">
-    日付: <input id="add-date" type="date">
-    イベント: <input id="add-title">
-    メモ: <input id="add-memo">
-    <button onclick="submitAddForm()">保存</button>
-    <button onclick="hideAddForm()">キャンセル</button>
+  <div style="text-align:center; margin-bottom:18px;">
+    <button onclick="showAddForm()">イベント追加</button>
   </div>
+  <form id="add-form" style="display:none" onsubmit="event.preventDefault();submitAddForm();">
+    <label>日付: <input id="add-date" type="date" required></label>
+    <label>イベント: <input id="add-title" required></label>
+    <label>メモ: <input id="add-memo"></label>
+    <div>
+      <button type="submit">保存</button>
+      <button type="button" onclick="hideAddForm()">キャンセル</button>
+    </div>
+  </form>
   <!-- アイコンエディタ モーダル -->
   <div id="icon-editor-modal">
     <div id="icon-editor">
       <h3>アイコン編集</h3>
       <div class="toolbar">
-        <button id="eyedropper">スポイト</button>
-        <input type="color" id="addcolor">
-        <button id="addcolorbtn">パレットに追加</button>
-        <button id="toggleGrid">グリッド：表示中</button>
+        <button id="eyedropper" type="button">スポイト</button>
+        <input type="color" id="addcolor" style="width:32px;height:32px;">
+        <button id="addcolorbtn" type="button">パレット追加</button>
+        <button id="toggleGrid" type="button">グリッド：表示中</button>
       </div>
       <canvas id="icon-canvas" width="200" height="200"></canvas>
       <div id="icon-palette"></div>
-      <button onclick="clearIcon()">クリア</button>
-      <button onclick="saveIcon()">保存</button>
-      <button id="close-editor" onclick="closeIconEditor()">閉じる</button>
+      <div style="margin-top:7px;">
+        <button onclick="clearIcon()" type="button">クリア</button>
+        <button onclick="saveIcon()" type="button">保存</button>
+        <button id="close-editor" onclick="closeIconEditor()" type="button">閉じる</button>
+      </div>
     </div>
   </div>
-
   <script>
     // --- イベント表 + アイコンエディタ ---
     let events = [];
@@ -61,8 +209,8 @@
     const iconSize = 20;
     const iconScale = 10;
     let iconData = Array.from({length: iconSize}, () => Array(iconSize).fill("#fff"));
-    let paletteColors = ["#fff","#f00","#00f","#0f0","#000","#ff0","#0ff","#f0f"];
-    let currentColor = paletteColors[1];
+    let paletteColors = ["#fff","#cce4f6","#40a0e0","#00bfff","#000","#ffb6b9","#f8ffb6","#b6ffd1"];
+    let currentColor = paletteColors[2];
     let eyedropperMode = false;
     let showGrid = true;
 
@@ -81,7 +229,7 @@
     function closeIconEditor() {
       document.getElementById('icon-editor-modal').style.display = "none";
       eyedropperMode = false;
-      document.getElementById('eyedropper').style.background = '';
+      document.getElementById('eyedropper').classList.remove('active');
     }
     function drawPalette() {
       const pal = document.getElementById('icon-palette'); pal.innerHTML = '';
@@ -103,7 +251,7 @@
       }
       // グリッド
       if (showGrid) {
-        ctx.strokeStyle="#ccc"; ctx.lineWidth=1;
+        ctx.strokeStyle="#cce4f6"; ctx.lineWidth=1;
         for(let i=1;i<iconSize;i++) {
           ctx.beginPath();
           ctx.moveTo(i*iconScale,0); ctx.lineTo(i*iconScale,iconSize*iconScale); ctx.stroke();
@@ -121,7 +269,7 @@
           currentColor = iconData[y][x];
           drawPalette();
           eyedropperMode = false;
-          document.getElementById('eyedropper').style.background = '';
+          document.getElementById('eyedropper').classList.remove('active');
         } else {
           iconData[y][x]=currentColor;
         }
@@ -130,7 +278,7 @@
     });
     document.getElementById('eyedropper').onclick = function() {
       eyedropperMode = !eyedropperMode;
-      this.style.background = eyedropperMode ? "#ffd" : "";
+      this.classList.toggle('active', eyedropperMode);
     };
     document.getElementById('addcolorbtn').onclick = function() {
       const val = document.getElementById('addcolor').value;
@@ -166,10 +314,10 @@
       let html = `<tr><th>アイコン</th><th>日付</th><th>タイトル</th><th>メモ</th><th>操作</th></tr>`;
       for(const e of events) {
         html += `<tr>
-          <td><canvas id="icon-thumb-${e.id}" width="40" height="40" style="image-rendering:pixelated"></canvas></td>
+          <td><canvas id="icon-thumb-${e.id}" width="40" height="40" style="image-rendering:pixelated;border-radius:8px;background:var(--main-bg);"></canvas></td>
           <td>${e.date??""}</td>
-          <td>${e.title??""}</td>
-          <td>${e.memo??""}</td>
+          <td style="max-width:140px;word-break:break-all;">${e.title??""}</td>
+          <td style="max-width:180px;word-break:break-all;">${e.memo??""}</td>
           <td>
             <button onclick="openIconEditor(${e.id})">アイコン編集</button>
           </td>
