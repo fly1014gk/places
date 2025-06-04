@@ -30,6 +30,7 @@ def load_canvas():
 
 def git_push_canvas():
     try:
+        subprocess.run(["git", "checkout", "main"], check=True)  # ←ここを追加
         subprocess.run(["git", "config", "--global", "user.email", "renderbot@example.com"], check=True)
         subprocess.run(["git", "config", "--global", "user.name", "renderbot"], check=True)
         subprocess.run(["git", "add", CANVAS_FILE], check=True)
