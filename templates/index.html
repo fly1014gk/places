@@ -159,11 +159,40 @@
     }
     .toolbar #eyedropper.active { background: #d2f1ff; color: var(--primary);}
     .toolbar #toggleGrid { min-width: 90px;}
+    .participant-area {
+      margin-top: 6px;
+      font-size: 0.97em;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .participant-input {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      justify-content: center;
+    }
+    select.participant-list {
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--main-bg);
+      color: var(--text-main);
+      padding: 4px 9px;
+      margin-left: 4px;
+      font-size: 1em;
+    }
+    .participant-label {
+      color: var(--text-sub);
+      font-size: 0.96em;
+      margin-right: 4px;
+    }
     @media (max-width: 600px) {
       table { font-size: 0.94em;}
       th, td { padding: 8px 6px; }
       #icon-editor { padding: 14px 3vw; }
       #add-form { width: 96vw;}
+      .participant-area { font-size:0.92em;}
     }
   </style>
 </head>
@@ -202,7 +231,6 @@
     </div>
   </div>
   <script>
-    // --- イベント表 + アイコンエディタ ---
     let events = [];
     let editingEventId = null;
     // アイコンエディタ
@@ -311,7 +339,13 @@
       const res = await fetch('/api/events');
       events = await res.json();
       events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-      let html = `<tr><th>アイコン</th><th>日付</th><th>タイトル</th><th>メモ</th><th>操作</th></tr>`;
+      let html = `<tr>
+        <th>アイコン</th>
+        <th>日付</th>
+        <th>タイトル</th>
+        <th>メモ</th>
+        <th>操作</th>
+      </tr>`;
       for(const e of events) {
         html += `<tr>
           <td><canvas id="icon-thumb-${e.id}" width="40" height="40" style="image-rendering:pixelated;border-radius:8px;background:var(--main-bg);"></canvas></td>
@@ -320,6 +354,19 @@
           <td style="max-width:180px;word-break:break-all;">${e.memo??""}</td>
           <td>
             <button onclick="openIconEditor(${e.id})">アイコン編集</button>
+            <button onclick="deleteEvent(${e.id})" style="background:#fd7676;">削除</button>
+            <div class="participant-area">
+              <div class="participant-input">
+                <input type="text" placeholder="名前" id="joiner-${e.id}" style="border-radius:5px;padding:3px 7px;width:70px;border:1px solid var(--border);background:var(--main-bg);">
+                <button onclick="joinEvent(${e.id})" style="padding:4px 12px;font-size:0.97em;">参加</button>
+                <span class="participant-label">参加者</span>
+                <select class="participant-list" id="plist-${e.id}" onchange="showParticipantName(this)">
+                  ${(Array.isArray(e.participants) && e.participants.length)
+                    ? e.participants.map(name=>`<option>${escapeHtml(name)}</option>`).join("")
+                    : '<option disabled selected>なし</option>'}
+                </select>
+              </div>
+            </div>
           </td>
         </tr>`;
       }
@@ -346,7 +393,8 @@
         date: document.getElementById('add-date').value,
         title: document.getElementById('add-title').value,
         memo: document.getElementById('add-memo').value,
-        icon: Array.from({length: iconSize}, () => Array(iconSize).fill("#fff"))
+        icon: Array.from({length: iconSize}, () => Array(iconSize).fill("#fff")),
+        participants: []
       };
       await fetch('/api/events', {
         method: 'POST',
@@ -355,6 +403,43 @@
       });
       hideAddForm();
       loadEvents();
+    }
+    async function deleteEvent(id) {
+      if (!confirm("本当に削除しますか？")) return;
+      await fetch(`/api/events/${id}`, { method: 'DELETE' });
+      loadEvents();
+    }
+    async function joinEvent(id) {
+      let input = document.getElementById(`joiner-${id}`);
+      let name = (input.value || "").trim();
+      if (!name) {
+        alert("名前を入力してください");
+        return;
+      }
+      let event = events.find(e=>e.id===id);
+      if (!event.participants) event.participants = [];
+      if (!event.participants.includes(name)) {
+        event.participants.push(name);
+        await fetch(`/api/events/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({participants: event.participants})
+        });
+        loadEvents();
+      } else {
+        alert("すでに参加者リストに含まれています");
+      }
+      input.value = "";
+    }
+    function showParticipantName(select) {
+      if (select.value && select.value !== "なし") {
+        alert('参加者: ' + select.value);
+      }
+    }
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, function(s) {
+        return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s]);
+      });
     }
     window.onload = loadEvents;
   </script>
