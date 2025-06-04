@@ -1,37 +1,10 @@
 import os
 import json
-import subprocess
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 
 EVENTS_FILE = "events.json"
-
-def ensure_git_identity():
-    """Render等でgit config未設定のままコミットしようとするとエラーになるため、起動時に一度設定"""
-    name = os.environ.get("GIT_AUTHOR_NAME", "Render Bot")
-    email = os.environ.get("GIT_AUTHOR_EMAIL", "bot@example.com")
-    try:
-        subprocess.run(["git", "config", "--global", "user.name", name], check=True)
-        subprocess.run(["git", "config", "--global", "user.email", email], check=True)
-    except Exception as e:
-        print("Could not set git identity:", e)
-
-def ensure_git_remote():
-    """git remoteがなければ環境変数GIT_REMOTE_URLでoriginを自動追加"""
-    try:
-        remotes = subprocess.run(
-            ["git", "remote"], capture_output=True, text=True, check=True
-        ).stdout.strip().splitlines()
-        if "origin" not in remotes:
-            repo_url = os.environ.get("GIT_REMOTE_URL")
-            if repo_url:
-                subprocess.run(["git", "remote", "add", "origin", repo_url], check=True)
-    except Exception as e:
-        print("Could not set git remote:", e)
-
-ensure_git_identity()
-ensure_git_remote()
 
 def load_events():
     if os.path.exists(EVENTS_FILE):
@@ -42,15 +15,6 @@ def load_events():
 def save_events(events):
     with open(EVENTS_FILE, "w", encoding="utf-8") as f:
         json.dump(events, f, ensure_ascii=False)
-    git_push_file(EVENTS_FILE, "Update events.json via web app")
-
-def git_push_file(file_path, message="Update events"):
-    try:
-        subprocess.run(["git", "add", file_path], check=True)
-        subprocess.run(["git", "commit", "-m", message], check=True)
-        subprocess.run(["git", "push"], check=True)
-    except Exception as e:
-        print("Git push error:", e)
 
 @app.route('/')
 def index():
