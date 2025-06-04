@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>イベント表 + アイコンエディタ</title>
+  <title>イベント表 + アイコンエディタ + Mini r/place</title>
   <style>
+    body { font-family: sans-serif; }
     #icon-editor-modal {
       display:none; position: fixed; left:0; top:0; right:0; bottom:0;
       background: rgba(0,0,0,0.3); z-index: 1000; justify-content: center; align-items: center;
@@ -19,6 +20,29 @@
     #close-editor { margin-top: 10px; }
     table { border-collapse: collapse; }
     td,th { border:1px solid #ccc; padding:4px; }
+    #rplace-section { margin-top: 48px; }
+    .toolbar {
+      margin-bottom: 10px;
+      background: #fafafa;
+      border-bottom: 1px solid #ccc;
+      padding: 8px 0;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    #rplace-palette span {
+      display: inline-block;
+      width: 24px; height: 24px;
+      border: 1px solid #999;
+      margin: 2px;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    #rplace-palette .selected { border: 2px solid #333; }
+    @media (max-width: 600px) {
+      .toolbar { flex-direction: column; gap: 8px; }
+    }
   </style>
 </head>
 <body>
@@ -26,13 +50,13 @@
   <table id="event-table"></table>
   <button onclick="showAddForm()">イベント追加</button>
   <div id="add-form" style="display:none">
-    日付: <input id="add-date">
+    日付: <input id="add-date" type="date">
     イベント: <input id="add-title">
     メモ: <input id="add-memo">
     <button onclick="submitAddForm()">保存</button>
     <button onclick="hideAddForm()">キャンセル</button>
   </div>
-  <!-- アイコンエディタのモーダル -->
+  <!-- アイコンエディタ モーダル -->
   <div id="icon-editor-modal">
     <div id="icon-editor">
       <h3>アイコン編集</h3>
@@ -43,21 +67,31 @@
       <button id="close-editor" onclick="closeIconEditor()">閉じる</button>
     </div>
   </div>
+
+  <div id="rplace-section">
+    <h2>Mini r/place</h2>
+    <div class="toolbar">
+      <button id="eyedropper">スポイト</button>
+      <input type="color" id="addcolor">
+      <button id="addcolorbtn">パレットに追加</button>
+      <button id="toggleGrid">グリッド：表示中</button>
+      <div id="rplace-palette"></div>
+    </div>
+    <canvas id="board" width="{{ size * 10 }}" height="{{ size * 10 }}"></canvas>
+  </div>
   <script>
-    // --- 初期データ ---
+    // --- イベント表 + アイコンエディタ ---
     let events = [];
     let editingEventId = null;
-    // --- アイコンエディタ ---
+    // アイコンエディタ
     const iconSize = 20;
     const iconScale = 10;
     let iconData = Array.from({length: iconSize}, () => Array(iconSize).fill("#fff"));
     const paletteColors = ["#fff","#f00","#00f","#0f0","#000","#ff0","#0ff","#f0f"];
     let currentColor = paletteColors[1];
 
-    // --- アイコン編集モーダルの制御 ---
     function openIconEditor(eventId) {
       editingEventId = eventId;
-      // アイコンデータをセット
       const event = events.find(e=>e.id===eventId);
       if(event && event.icon) {
         iconData = JSON.parse(JSON.stringify(event.icon));
@@ -111,9 +145,7 @@
       iconData = Array.from({length: iconSize}, () => Array(iconSize).fill("#fff"));
       drawIconCanvas();
     }
-    // 保存（API連携例）
     async function saveIcon() {
-      // 編集中イベントにiconDataをセットしてPUT
       await fetch(`/api/events/${editingEventId}`, {
         method: 'PUT',
         headers: {'Content-Type':'application/json'},
@@ -122,11 +154,11 @@
       closeIconEditor();
       loadEvents();
     }
-
-    // --- イベント表ロード&表示 ---
+    // イベント表ロード&表示(日付順)
     async function loadEvents() {
       const res = await fetch('/api/events');
       events = await res.json();
+      events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       let html = `<tr><th>アイコン</th><th>日付</th><th>タイトル</th><th>メモ</th><th>操作</th></tr>`;
       for(const e of events) {
         html += `<tr>
@@ -136,12 +168,10 @@
           <td>${e.memo??""}</td>
           <td>
             <button onclick="openIconEditor(${e.id})">アイコン編集</button>
-            <!-- ほか編集・削除など -->
           </td>
         </tr>`;
       }
       document.getElementById('event-table').innerHTML = html;
-      // アイコン描画
       for(const e of events) {
         if(e.icon) drawIconThumb(e.icon, `icon-thumb-${e.id}`);
       }
@@ -156,7 +186,7 @@
         ctx.fillRect(x*2, y*2, 2, 2);
       }
     }
-    // --- イベント追加フォーム ---
+    // イベント追加フォーム
     function showAddForm() { document.getElementById('add-form').style.display = ""; }
     function hideAddForm() { document.getElementById('add-form').style.display = "none"; }
     async function submitAddForm() {
@@ -175,6 +205,132 @@
       loadEvents();
     }
     window.onload = loadEvents;
+
+    // --- Mini r/place ---
+    const size = {{ size }};
+    const scale = 10;
+    const defaultColors = {{ default_colors|tojson }};
+    let rplaceColors = JSON.parse(localStorage.getItem("paletteColors") || "null") || defaultColors.slice();
+    let rplaceCurrentColor = localStorage.getItem("paletteCurrentColor") || rplaceColors[1] || rplaceColors[0];
+    let eyedropperMode = false;
+    let canvasData = Array.from({length: size}, () => Array(size).fill(rplaceColors[0]));
+    let latestTimestamp = 0;
+    let showGrid = true;
+
+    function drawRPlacePalette() {
+      const pal = document.getElementById('rplace-palette');
+      pal.innerHTML = '';
+      rplaceColors.forEach((col) => {
+        let span = document.createElement('span');
+        span.style.background = col;
+        if(col === rplaceCurrentColor) span.classList.add("selected");
+        span.onclick = () => {
+          rplaceCurrentColor = col;
+          localStorage.setItem("paletteCurrentColor", rplaceCurrentColor);
+          drawRPlacePalette();
+        }
+        pal.appendChild(span);
+      });
+      localStorage.setItem("paletteColors", JSON.stringify(rplaceColors));
+    }
+    drawRPlacePalette();
+
+    document.getElementById('addcolorbtn').onclick = function() {
+      const val = document.getElementById('addcolor').value;
+      if(!rplaceColors.includes(val)) {
+        rplaceColors.push(val);
+        rplaceCurrentColor = val;
+        drawRPlacePalette();
+        localStorage.setItem("paletteCurrentColor", rplaceCurrentColor);
+      }
+    };
+
+    document.getElementById('eyedropper').onclick = function() {
+      eyedropperMode = !eyedropperMode;
+      this.style.background = eyedropperMode ? "#ffd" : "";
+    };
+
+    document.getElementById('toggleGrid').onclick = function() {
+      showGrid = !showGrid;
+      this.textContent = "グリッド：" + (showGrid ? "表示中" : "非表示");
+      redrawRPlace();
+    };
+
+    const cvs = document.getElementById('board');
+    const ctx = cvs.getContext('2d');
+    function drawPixel(x, y, color) {
+      ctx.fillStyle = color ?? "#fff";
+      ctx.fillRect(x * scale, y * scale, scale, scale);
+    }
+    function drawGrid() {
+      ctx.save();
+      ctx.strokeStyle = "#ccc";
+      ctx.lineWidth = 1;
+      for(let x=1; x<size; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x*scale,0);
+        ctx.lineTo(x*scale,size*scale);
+        ctx.stroke();
+      }
+      for(let y=1; y<size; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0,y*scale);
+        ctx.lineTo(size*scale,y*scale);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function redrawRPlace() {
+      ctx.clearRect(0, 0, size*scale, size*scale);
+      for(let y=0; y<size; y++)
+        for(let x=0; x<size; x++)
+          drawPixel(x, y, canvasData[y][x]);
+      if(showGrid) drawGrid();
+    }
+    fetch('/canvas').then(r=>r.json()).then(data => {
+      canvasData = data.canvas;
+      redrawRPlace();
+    });
+    function pollDiff() {
+      fetch(`/diff?since=${latestTimestamp}`)
+        .then(r=>r.json())
+        .then(diffArr => {
+          let changed = false;
+          for(const u of diffArr) {
+            if(u.timestamp > latestTimestamp) latestTimestamp = u.timestamp;
+            if(u.x >= 0 && u.x < size && u.y >= 0 && u.y < size) {
+              canvasData[u.y][u.x] = u.color;
+              drawPixel(u.x, u.y, u.color);
+              changed = true;
+            }
+          }
+          if(changed && showGrid) drawGrid();
+          setTimeout(pollDiff, changed ? 200 : 600);
+        });
+    }
+    pollDiff();
+
+    cvs.addEventListener('click', function(e){
+      const rect = this.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / scale);
+      const y = Math.floor((e.clientY - rect.top) / scale);
+
+      if(eyedropperMode) {
+        if (canvasData[y] && canvasData[y][x] !== undefined) {
+          rplaceCurrentColor = canvasData[y][x];
+          localStorage.setItem("paletteCurrentColor", rplaceCurrentColor);
+          eyedropperMode = false;
+          document.getElementById('eyedropper').style.background = "";
+          drawRPlacePalette();
+        }
+        return;
+      }
+      fetch('/draw', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({x: x, y: y, color: rplaceCurrentColor})
+      });
+    });
   </script>
 </body>
 </html>
